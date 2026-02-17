@@ -11,7 +11,7 @@ CREATE TABLE users (
 -- JOBS TABLE
 CREATE TABLE jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
   status TEXT NOT NULL CHECK (
     status IN ('pending', 'processing', 'completed', 'failed')
   ),
