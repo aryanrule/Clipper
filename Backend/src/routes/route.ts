@@ -1,13 +1,13 @@
 
 
 import { Router } from "express";
-import { getClipFormats } from "../services/services";
+import { clipVideo, getClipFormats } from "../services/services";
 
 const router = Router();
 
 
 router.get('/format' , getClipFormats);
-
+router.get('/clip' , clipVideo);   
 
 export default router;
 
