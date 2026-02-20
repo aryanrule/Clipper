@@ -4,20 +4,35 @@ import path from "path"
 import fs from "fs";
 import { spawn } from "child_process";
 import { unique } from "next/dist/build/utils";
-import { getSupabase } from "../database/supabase";
+// import { getSupabase } from "../database/supabase";
+import { error } from "console";
+// src/config/supabaseClient.ts
+
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL as string;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY as string;
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Supabase credentials are not set in environment variables');
+}
+export const supabase = createClient(
+  supabaseUrl,
+  supabaseServiceKey
+);
+// console.log(supabase);   
 const uploadPath = path.join(__dirname , '../uploads');
+
 
 if(!fs.existsSync(uploadPath)){
      fs.mkdirSync(uploadPath);   
 }
 
 const Bucket = process.env.SUPABASE_BUCKET; 
-const supabase = getSupabase();
 
 interface jobsStatus {
     id : string , 
     status : string , 
-    userId : string  , 
+    user_id : string  , 
     public_url? : string , 
     storage_path? : string  , 
     file_path?:string , 
@@ -178,9 +193,9 @@ export const getClipFormats = async (req : Request , res : Response) => {
 
 
 const dummyData = {
-  url: "https://www.youtube.com/watch?v=aOLsQN98aI4", 
-  startTime: "00:00:34", 
-  endTime: "00:00:40",
+  url: "https://www.youtube.com/watch?v=ok61RWVttRw", 
+  startTime: "00:00:04", 
+  endTime: "00:00:08",   
   formatId: "91",
   subtitles: false,  
   userId: "user_12345"
@@ -191,7 +206,7 @@ const dummyData = {
 export const clipVideo = async (req:Request , res : Response) => {
   // const url = "https://www.youtube.com/watch?v=1O0yazhqaxs";
   const {url , startTime , endTime , formatId , subtitles , userId } = dummyData ;
-  if(!url || !startTime || !endTime || !formatId){
+  if(!url || !startTime == null|| endTime == null || !formatId){
     return res.status(400).json({
         error :"url , startTime , endTime , formatId is required" 
     })
@@ -200,14 +215,19 @@ export const clipVideo = async (req:Request , res : Response) => {
   const initialjobData : jobsStatus = {
       id: ID , 
       status: "pending" , 
-      userId : userId
+      user_id : userId
   }
   const outputpath = path.resolve(path.join(uploadPath)  , `clip-${ID}.mp4`);
   console.log("outputpath" , outputpath);
-//   const {error : insertError } =await supabase.from('jobs').insert([initialjobData]) ;
-//   if(insertError){
-//     return res.status(400).json({error:"failed to create a job"});
-//   }
+  const {error : insertError} = await supabase.from('jobs').insert([initialjobData]);
+  if(insertError){
+    return res.status(300).json({error:"Failed to insert a new job in db" , insertError});  
+  }
+  else {
+    return res.status(200).json({
+        message : "bnaadi job db mein"  
+    })
+  }
 
   (async() => {
     
@@ -369,8 +389,8 @@ export const clipVideo = async (req:Request , res : Response) => {
         ff.on('error' , reject);
         })
         // console.log("finaloutputpath" , outputpath);  
-        await fs.promises.unlink(outputpath).catch(()=>{});
-        await fs.promises.rename(fastpath  , outputpath);
+        // await fs.promises.unlink(outputpath).catch(()=>{});
+        // await fs.promises.rename(fastpath  , outputpath);
         console.log(fastpath); 
         console.log("saara kaam hpgya hai"); 
       
