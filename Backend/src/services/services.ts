@@ -4,15 +4,35 @@ import path from "path"
 import fs from "fs";
 import { spawn } from "child_process";
 import { unique } from "next/dist/build/utils";
-import { getSupabase } from "../database/supabase";
-const uploadPath = path.resolve(__dirname , '../uploads');
+// import { getSupabase } from "../database/supabase";
+import { error } from "console";
+// src/config/supabaseClient.ts
+
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL as string;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY as string;
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Supabase credentials are not set in environment variables');
+}
+export const supabase = createClient(
+  supabaseUrl,
+  supabaseServiceKey
+);
+// console.log(supabase);   
+const uploadPath = path.join(__dirname , '../uploads');
+
+
+if(!fs.existsSync(uploadPath)){
+     fs.mkdirSync(uploadPath);   
+}
+
 const Bucket = process.env.SUPABASE_BUCKET; 
-const supabase = getSupabase();
 
 interface jobsStatus {
     id : string , 
     status : string , 
-    userId : string  , 
+    user_id : string  , 
     public_url? : string , 
     storage_path? : string  , 
     file_path?:string , 
@@ -23,10 +43,39 @@ function createJobId () : string {
     return Date.now().toString(36) + Math.random().toString(36);
 }
 
+function timeTosecond(timeStr : string):number{
+    const parts = timeStr.split(':');
+    return parseInt(parts[2]) *3600 + parseInt(parts[1])*60 + parseInt(parts[0])*60; 
+}
+
+function secondsToTime(seconds : number) : string{
+         const hours = Math.floor(seconds/3600);
+         const minutes = Math.floor((seconds%3600)/60);
+         const sec = seconds%60;
+         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${sec.toFixed(3).padStart(6, '0')}`;
+}
+
+async function subtitlesAdjustment(inputpath:string , outputpath:string , startTime:string):Promise<void>{
+      const startseconds = timeTosecond(startTime);
+      console.log("time to sec" , startseconds);
+      const timestampregex =  /(\d{2}:\d{2}:\d{2}\.\d{3}) --> (\d{2}:\d{2}:\d{2}\.\d{3})/g;
+      const content = await fs.promises.readFile(inputpath , 'utf-8');
+      
+     const adjustedContent = content.replace(timestampregex, (match, start, end) => {
+         const startsec = timeTosecond(start) - startseconds;
+         const endsec = timeTosecond(end) - startseconds;
+
+         if(startsec < 0) return match;
+         return `${secondsToTime(startsec)} --> ${secondsToTime(endsec)}`;
+     });
+    
+     console.log("i am wriring content in adjustment.vtt");  
+    await fs.promises.writeFile(outputpath , adjustedContent , 'utf-8');
+}
 // a little bit leftover
 export const getClipFormats = async (req : Request , res : Response) => {
     //  const {url} = req.body;
-    const url = "https://www.youtube.com/watch?v=9PXluC2FMD0";  
+    const url = "https://www.youtube.com/watch?v=aOLsQN98aI4";  
     if(!url || typeof(url) != "string") {
         return res.status(400).json({
             message:"url is required " ,
@@ -141,12 +190,14 @@ export const getClipFormats = async (req : Request , res : Response) => {
      }
 }
 
+
+
 const dummyData = {
-  url: "https://www.youtube.com/watch?v=9PXluC2FMD0",
-  startTime: "00:00:00",
-  endTime: "00:00:2",
-  formatId: "91-0",
-  subtitles: true,
+  url: "https://www.youtube.com/watch?v=ok61RWVttRw", 
+  startTime: "00:00:04", 
+  endTime: "00:00:08",   
+  formatId: "91",
+  subtitles: false,  
   userId: "user_12345"
 };
 
@@ -155,7 +206,7 @@ const dummyData = {
 export const clipVideo = async (req:Request , res : Response) => {
   // const url = "https://www.youtube.com/watch?v=1O0yazhqaxs";
   const {url , startTime , endTime , formatId , subtitles , userId } = dummyData ;
-  if(!url || !startTime || !endTime || !formatId){
+  if(!url || !startTime == null|| endTime == null || !formatId){
     return res.status(400).json({
         error :"url , startTime , endTime , formatId is required" 
     })
@@ -164,14 +215,19 @@ export const clipVideo = async (req:Request , res : Response) => {
   const initialjobData : jobsStatus = {
       id: ID , 
       status: "pending" , 
-      userId : userId
+      user_id : userId
   }
   const outputpath = path.resolve(path.join(uploadPath)  , `clip-${ID}.mp4`);
   console.log("outputpath" , outputpath);
-//   const {error : insertError } =await supabase.from('jobs').insert([initialjobData]) ;
-//   if(insertError){
-//     return res.status(400).json({error:"failed to create a job"});
-//   }
+  const {error : insertError} = await supabase.from('jobs').insert([initialjobData]);
+  if(insertError){
+    return res.status(300).json({error:"Failed to insert a new job in db" , insertError});  
+  }
+  else {
+    return res.status(200).json({
+        message : "bnaadi job db mein"  
+    })
+  }
 
   (async() => {
     
@@ -258,26 +314,92 @@ export const clipVideo = async (req:Request , res : Response) => {
           yt.on('error' , reject);
        });
        const fastpath = path.join(uploadPath , `clip-${ID}-fast.mp4`);  
+       console.log("fastpath" , fastpath);  
+       console.log("outputpath", outputpath);  
        const subpath = outputpath.replace(/\.mp4$/ , ".en.vtt");
-       const subtitles_exists = fs.readFileSync(subpath); 
+       const subtitles_exists = fs.existsSync(subpath); 
+       if(subtitles_exists){
+         console.log("yes subtitles exists"); 
+       }
        
-       
+       // adjusting subtitles time stamps 
+       if(subtitles && subtitles_exists){
+          const adjustedPath = path.join(uploadPath , `clip-${ID}-adjustment.vtt`);
+          console.log(adjustedPath);
+          await subtitlesAdjustment(subpath , adjustedPath , startTime);
+          await fs.promises.rename(adjustedPath , subpath);
+          console.log("subpath" , subpath);
+          console.log("adjustmentpath" , adjustedPath) 
+              
+       }
        await new Promise<void>((resolve , reject) => {
+           console.log("i am in ")
            const ffmpegArgs = [
               '-y' , 
-              '-i' , outputpath
+              '-i' , outputpath // the input actually 
            ]
 
-             
+           console.log("i am at this block  fffmppppppeeeegg starting")  
+           
+            if (subtitles && subtitles_exists) {
+            console.log(`[job ${ID}] burning subtitles from ${subpath}`);
+            ffmpegArgs.push(
+            '-vf', `subtitles=${subpath}`,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-b:a', '128k',
+            '-preset', 'ultrafast',  // Faster encoding, less CPU
+            '-crf', '28',            // Lower quality but much smaller file
+            '-maxrate', '2M',        // Limit bitrate
+            '-bufsize', '4M'         // Limit buffer size
+            );
+        } else {
+          // No subtitles to burn – copy video but transcode audio to AAC to ensure MP4 compatibility
+          ffmpegArgs.push(
+            '-c:v', 'copy', // keep original video
+            '-c:a', 'aac',
+            '-b:a', '128k'
+          );
+        }
+        ffmpegArgs.push(
+          '-movflags', '+faststart',
+          fastpath
+        );
 
-       })
+        console.log(`starting the job${ID} running ffmpeg` , ffmpegArgs.join(' '));
+        
+        const ff = spawn('ffmpeg' , ffmpegArgs);
+        const ffmpegTimeout = setTimeout(()=> {
+          console.log(`[job ${ID}] ffmpeg timeout reached, killing process`);
+          ff.kill('SIGKILL');
+         } , 300000);
 
-        // things are got done 
+           
+        ff.stderr.on('data', d => console.error(`[job ${ID}] ffmpeg`, d.toString()));
+        ff.on('close' , (code , signal) => {
+            clearTimeout(ffmpegTimeout);
+            if(code === 0){
+                resolve();
+            }else if(code === null){
+                reject(new Error(`ffmpeg process was killed by signal: ${signal || 'unknown'} - likely due to memory limits on Render`));
+            }else {
+                reject(new Error(`ffmpeg exited with code ${code}`));
+            }
+        })
+        ff.on('error' , reject);
+        })
+        // console.log("finaloutputpath" , outputpath);  
+        // await fs.promises.unlink(outputpath).catch(()=>{});
+        // await fs.promises.rename(fastpath  , outputpath);
+        console.log(fastpath); 
+        console.log("saara kaam hpgya hai"); 
+      
+          
        return res.status(200).json({
             success:true , 
             message : "clipped successfully", 
         })
-
+   
     }catch(error){
          
         console.log(error);
