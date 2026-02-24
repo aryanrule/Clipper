@@ -454,5 +454,107 @@ export const clipVideo = async (req:Request , res : Response) => {
 };
 
 
+export const getClipWithID = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
 
-  
+    if (!id) {
+      return res.status(400).json({
+        message: "id is required",
+      });
+    }
+
+    const { data: job, error } = await supabase
+      .from("jobs")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !job) {
+      console.log(`[job ${id}] not found in database. Error:`, error?.message);
+
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      id: job.id,
+      status: job.status,
+      error: job.error,
+      url: job.public_url,
+      storagePath: job.storage_path,
+      createdAt: job.created_at,
+    });
+
+  } catch (err: unknown) {
+    console.error("Unexpected error in getClipWithID:", err);
+
+    const message =
+      err instanceof Error ? err.message : "Internal server error";
+
+    return res.status(500).json({
+      success: false,
+      message,
+    });
+  }
+};
+
+
+export const cleanUpClip = async(req:Request , res:Response) => {
+   try {
+     const {id} = req.params;
+         if (!id) {
+        return res.status(400).json({
+        message: "id is required",
+      });
+       }
+
+      const {data:job , error : fetchError} = await supabase.from('jobs').select('*').eq('id' , id).single();
+      if(fetchError || !job){
+         return res.status(404).json({
+         message: "Job not found",
+        });
+      }
+      
+      const storagepath = job.storage_path;
+
+      if(storagepath){
+        const {error : storage_error}= await supabase.storage.from(BUCKET).remove([storagepath]);
+        if (storage_error) {
+        console.error(`[job ${id}] storage delete error`, storage_error);
+        }
+      }
+
+      const { error: deletingError } = await supabase
+      .from("jobs")
+      .delete()
+      .eq("id", id);
+
+    if (deletingError) {
+      console.error(`[job ${id}] job delete error`, deletingError);
+
+      return res.status(500).json({
+        message: "Job cleanup failed",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Job and associated file cleaned up successfully",
+    });
+
+   }catch(err:unknown){
+    console.error("Unexpected error in cleanUpClip:", err);
+
+    const message =
+      err instanceof Error ? err.message : "Internal server error";
+
+    return res.status(500).json({
+      success: false,
+      message,
+    });
+   }
+}
