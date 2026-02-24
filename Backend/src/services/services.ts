@@ -4,21 +4,13 @@ import path from "path"
 import fs from "fs";
 import { spawn } from "child_process";
 import { unique } from "next/dist/build/utils";
-// import { getSupabase } from "../database/supabase";
+import { getSupabase } from "../database/supabase";
 import { error } from "console";
 // src/config/supabaseClient.ts
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL as string;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY as string;
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Supabase credentials are not set in environment variables');
-}
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseServiceKey
-);
+const supabase = getSupabase();  
 // console.log(supabase);   
 const uploadPath = path.join(__dirname , '../uploads');
 
@@ -27,7 +19,7 @@ if(!fs.existsSync(uploadPath)){
      fs.mkdirSync(uploadPath);   
 }
 
-const Bucket = process.env.SUPABASE_BUCKET; 
+const BUCKET = process.env.SUPABASE_BUCKET as string; 
 
 interface jobsStatus {
     id : string , 
@@ -191,6 +183,9 @@ export const getClipFormats = async (req : Request , res : Response) => {
 }
 
 
+function getrandomUserString() : string {
+   return "user_"+ Math.random().toString();
+}
 
 const dummyData = {
   url: "https://www.youtube.com/watch?v=ok61RWVttRw", 
@@ -204,8 +199,10 @@ const dummyData = {
 
 // not focusing currently on production path thing
 export const clipVideo = async (req:Request , res : Response) => {
+  
   // const url = "https://www.youtube.com/watch?v=1O0yazhqaxs";
-  const {url , startTime , endTime , formatId , subtitles , userId } = dummyData ;
+  const {url , startTime , endTime , formatId , subtitles  } = dummyData ;
+  const userId = getrandomUserString();  
   if(!url || !startTime == null|| endTime == null || !formatId){
     return res.status(400).json({
         error :"url , startTime , endTime , formatId is required" 
@@ -217,20 +214,24 @@ export const clipVideo = async (req:Request , res : Response) => {
       status: "pending" , 
       user_id : userId
   }
+
   const outputpath = path.resolve(path.join(uploadPath)  , `clip-${ID}.mp4`);
   console.log("outputpath" , outputpath);
   const {error : insertError} = await supabase.from('jobs').insert([initialjobData]);
   if(insertError){
-    return res.status(300).json({error:"Failed to insert a new job in db" , insertError});  
-  }
-  else {
-    return res.status(200).json({
-        message : "bnaadi job db mein"  
+    return res.status(500).json({
+      message:"not able to insert in the database" 
     })
   }
-
+  
   (async() => {
-    
+      let finaljobstatus : jobsStatus = {
+      id: ID , 
+      status: "pending" , 
+      user_id : userId
+      };
+    let tempcookiePath :string | null = null;
+
     try {
        const section = `*${startTime}-${endTime}`;
        // leaving the prod cookie code 
@@ -244,8 +245,6 @@ export const clipVideo = async (req:Request , res : Response) => {
        // remove the localpath 
        // update the finaljobstatus 
        // return the id the actuall createJobId
-       
-       let tempcookiePath :string | null = null;
        const prodCookPath = '/etc/secrets/cookies.txt';
        if(fs.existsSync(prodCookPath)){
           const cookieContent = fs.readFileSync(prodCookPath);
@@ -388,23 +387,70 @@ export const clipVideo = async (req:Request , res : Response) => {
         })
         ff.on('error' , reject);
         })
-        // console.log("finaloutputpath" , outputpath);  
-        // await fs.promises.unlink(outputpath).catch(()=>{});
-        // await fs.promises.rename(fastpath  , outputpath);
+
+        console.log("finaloutputpath" , outputpath);  
+        console.log("fastpath" , fastpath);  
+        await fs.promises.unlink(outputpath).catch(()=>{});
+        await fs.promises.rename(fastpath  , outputpath); // the fastpathcontent
         console.log(fastpath); 
         console.log("saara kaam hpgya hai"); 
-      
-          
-       return res.status(200).json({
-            success:true , 
-            message : "clipped successfully", 
-        })
+        const objectpath =  `clip-${ID}.mp4`;
+        
+        // i need to store this clip in supabase now
+        console.log(`uploading clip with id ${ID} uploading to supabase`);
+
+        const fileBuffer = await fs.promises.readFile(outputpath);
+        const {error : uploadError} = await supabase.storage.from(BUCKET)
+        .upload(objectpath , fileBuffer ,  {
+          contentType: 'video/mp4',
+          upsert: true,
+        });
+        if(uploadError){
+          throw uploadError;
+        }
+
+        const {data : public_data} = supabase.storage.from(BUCKET).getPublicUrl(objectpath);
+        
+        finaljobstatus = {
+          id : ID , 
+          user_id :userId , 
+          status : "completed" , 
+          storage_path : objectpath, 
+          public_url : public_data.publicUrl ,
+        }
+        console.log(`[job ${ID}] ready - storagePath: ${finaljobstatus.storage_path}, publicUrl: ${finaljobstatus.public_url}`);
+        
+        await fs.promises.unlink(outputpath).catch(() => {
+          console.log("file removed locally");
+        });
+        
+        console.log("clipped siccessfullyyy ");
    
-    }catch(error){
-         
-        console.log(error);
+    }catch(err : unknown){
+       console.error(`[job ${ID}] failed`, err);
+       const message = err instanceof Error ? err.message : String(err);
+          finaljobstatus = {
+          id : ID , 
+          user_id :userId , 
+          status : "failed", 
+          error : message
+        }  
+    }
+    finally{
+       if(tempcookiePath && fs.existsSync(tempcookiePath)){
+        fs.unlinkSync(tempcookiePath);
+       }
+       const { error: updateError } = await supabase
+        .from('jobs')
+        .update(finaljobstatus)
+        .eq('id', ID);
+        if(updateError){
+         console.error(`[job ${ID}] failed to update final job status in database`, updateError);
+        }
     }
   })();
+
+  return res.status(202).json({id : ID});
 };
 
 
