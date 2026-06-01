@@ -1,5 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+
+-- // jobstatus schema for the micro-backend only 
 CREATE TABLE jobs (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -15,7 +17,6 @@ CREATE TABLE jobs (
 
 CREATE INDEX idx_jobs_user_id ON jobs(user_id);
 
-
 -- interface jobsStatus {
 
 
@@ -28,3 +29,24 @@ CREATE INDEX idx_jobs_user_id ON jobs(user_id);
 --     file_path?:string , 
 --     error?:string , 
 -- } 
+
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    premium BOOLEAN NOT NULL DEFAULT FALSE,
+    clip_limit INTEGER NOT NULL DEFAULT 2,
+    image TEXT ,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+
+
+
+
+
+
+
+
+
