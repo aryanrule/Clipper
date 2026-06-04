@@ -17,10 +17,9 @@ CREATE TABLE jobs (
 
 CREATE INDEX idx_jobs_user_id ON jobs(user_id);
 
+
+
 -- interface jobsStatus {
-
-
-
 --     id : string , 
 --     status : string , 
 --     userId : string  , 
@@ -29,6 +28,7 @@ CREATE INDEX idx_jobs_user_id ON jobs(user_id);
 --     file_path?:string , 
 --     error?:string , 
 -- } 
+
 
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
