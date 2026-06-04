@@ -19,7 +19,6 @@ export const auth = betterAuth({
      
      // to be fixed and leftover 
      trustedOrigins: (
-      process.env.TRUSTED_ORIGINS ||
       `${process.env.NEXT_PUBLIC_APP_URL},https://www.clippa.in,https://clippa.in`
     )
       .split(/,\s*/)
