@@ -1,9 +1,7 @@
-
-
-
 "use client" 
 
 import { Button } from "@/components/ui/button";
+import type { User } from "@supabase/supabase-js";
 
 
 import {
@@ -15,21 +13,41 @@ import {
 } from "@/components/ui/dialog";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
+
+
+
 interface SignInModalProps {
   trigger?: React.ReactNode;
 }
 
 
 export default function SignInModal({trigger} : SignInModalProps){
-    
+  
+  
+
+  
    const [loading , setLoading] = useState(false);
    const [open , setOpen] = useState(false);
-   
+   const supabase = getSupabaseBrowserClient();
+   //  const [currentUser , setCurrentUser] = useState<User | null>(user);
    
 
-   async function handleSignInWithGoogle(){
-      
-   }
+  async function handleGoogleLogin() {
+    try {
+     setLoading(true);
+    //  console.log("url" ,  `${window.location.origin}/editor`);
+     await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback`, 
+      },
+    });
+    
+    } finally {
+    setLoading(false);
+    }}
+
     
    return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -48,7 +66,7 @@ export default function SignInModal({trigger} : SignInModalProps){
             size="lg"
             className={cn("w-full gap-2")}
             disabled={loading}
-            onClick={handleSignInWithGoogle}
+            onClick={handleGoogleLogin}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
