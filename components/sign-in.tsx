@@ -36,14 +36,14 @@ export default function SignInModal({trigger} : SignInModalProps){
   async function handleGoogleLogin() {
     try {
      setLoading(true);
-    //  console.log("url" ,  `${window.location.origin}/editor`);
+     //  console.log("url" ,  `${window.location.origin}/editor`);
      await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/api/auth/callback`, 
       },
-    });
-    
+     });
+     
     } finally {
     setLoading(false);
     }}

@@ -31,16 +31,15 @@ CREATE INDEX idx_jobs_user_id ON jobs(user_id);
 
 
 CREATE TABLE users (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY REFERENCES auth.users(id),
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     premium BOOLEAN NOT NULL DEFAULT FALSE,
     clip_limit INTEGER NOT NULL DEFAULT 2,
-    image TEXT ,
+    image TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
-
 
 
 
