@@ -1,11 +1,14 @@
 
 "use client" 
 import Image from "next/image";
-import { authClient } from "@/lib/auth-client";
+
 import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-
+import { Button } from "@/components/ui/button";
+import SignInModal from "@/components/sign-in";
+import { useEffect, useState } from "react";
+import { createSupabaseServerClient } from "@/lib/supabase/server-client";
 
 
 const fadeUpVariants = {
@@ -14,11 +17,23 @@ const fadeUpVariants = {
 };
 
 
-export default function Home() {
-  
-  const {data: session , isPending} = authClient.useSession();
 
+
+export default  function Home() {
   
+
+  // if (isPending) {
+  //   return (
+  //     <div className="flex justify-center items-center h-screen">
+  //       <Loader2 className="w-10 h-10 animate-spin" />
+  //     </div>
+  //   );
+  // }
+  
+  
+
+
+
 
   return (
     <main className="min-h-screen max-w-5xl mx-auto flex flex-col items-center justify-center px-4 md:px-6 lg:px-8 pt-32 pb-12 gap-16">
@@ -53,7 +68,7 @@ export default function Home() {
           animate="animate"
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          {/* <SignInModal trigger={<Button size="lg">Get started</Button>} /> */}
+          <SignInModal trigger={<Button size="lg">Get started</Button>} />
         </motion.div>
       </div>
 
