@@ -19,7 +19,7 @@ if(!fs.existsSync(uploadPath)){
      fs.mkdirSync(uploadPath);   
 }
 
-const BUCKET = process.env.SUPABASE_BUCKET as string; 
+const BUCKET = process.env.BUCKET as string; 
 
 interface jobsStatus {
     id : string , 
@@ -66,8 +66,8 @@ async function subtitlesAdjustment(inputpath:string , outputpath:string , startT
 }
 // a little bit leftover
 export const getClipFormats = async (req : Request , res : Response) => {
-    //  const {url} = req.body;
-    const url = "https://www.youtube.com/watch?v=aOLsQN98aI4";  
+     const url = req.query.url; 
+    // const url = "https://www.youtube.com/watch?v=aOLsQN98aI4";  
     if(!url || typeof(url) != "string") {
         return res.status(400).json({
             message:"url is required " ,

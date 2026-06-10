@@ -4,7 +4,7 @@ import routes from "./routes/route";
 import express from "express";
 // import { getClipFormats } from "./services/services";
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT ;
 
 
 

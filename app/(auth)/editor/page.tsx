@@ -36,7 +36,7 @@ const Editor = () => {
   const [startTime, setStartTime] = useState("00:00:00");
   const [endTime, setEndTime] = useState("00:00:00");
   const [thumbNailUrl , setThumbNailUrl] = useState<string | null>(null);
-  const [isMetaDataLoading , setIsMetaDataLoading] = useState(true);
+  const [isMetaDataLoading , setIsMetaDataLoading] = useState(false);
   const [metaData , setMetaData] = useState<metaDataProps>({});
   const [cropRatio, setCropRatio] = useState<
     "original" | "vertical" | "square"
@@ -84,6 +84,68 @@ const Editor = () => {
     setUser(null);
     router.push('/');
   }
+  
+  function getVideoId(url : string){
+    console.log("youtube url" , url);
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    console.log("match" , match);
+    return match && match[7].length === 11 ? match[7] : null;
+  }
+
+  async function fetchVideoMetaData(videoID : string | null){
+      if(!videoID) return;
+      setIsMetaDataLoading(true);
+      try{
+        const url = `https://www.youtube.com/watch?v=${videoID}`;
+        const metadataResponse = await fetch(`/api/metadata?url=${url}`);
+        if (!metadataResponse.ok) throw new Error("Failed to fetch video metadata");
+        const data = await metadataResponse.json();
+        console.log("data" , data );  
+        setMetaData({
+          title : data?.metadata.title , 
+          thumbnail : data?.metadata.image , 
+          description : data?.metadata.description , 
+        }) ;
+        setThumbNailUrl(data?.metaData?.image ? data?.metaData?.image :  `https://img.youtube.com/vi/${videoID}/maxresdefault.jpg`);
+
+        // formats leftover
+        const formatsResponse = await fetch(`/api/formats?url=${encodeURIComponent(url)}`);
+        if(formatsResponse.ok){
+          const formatData =await formatsResponse.json();
+          console.log("formatdata" , formatData);  
+          setFormats(formatData?.formats || []);
+          if(formatData?.formats.length > 0){
+            setSelectedFormat(formatData?.formats[0].format_id);
+          }
+        }
+        
+      }catch(error){
+     console.error("Error fetching metadata:", error);
+      // Fallback to YouTube thumbnail
+        setThumbNailUrl(
+          `https://img.youtube.com/vi/${videoID}/maxresdefault.jpg`
+        );
+      }finally{
+        setIsMetaDataLoading(false);   
+      }
+  }
+
+  useEffect(() => {
+    const videoID = getVideoId(url);
+    if(videoID){
+      //immediately show the laoding skeloton 
+      console.log("inside the skeleton building block" , videoID);   
+      setIsMetaDataLoading(true);
+      fetchVideoMetaData(videoID);
+    }else {
+      setThumbNailUrl(null);
+      setMetaData({});
+      setFormats([]);
+      setSelectedFormat('');
+      setIsMetaDataLoading(false);
+    }
+  } ,  [url]);
 
   const firstName =
     user?.user_metadata?.name?.split(" ")[0] ??
@@ -133,7 +195,7 @@ const Editor = () => {
 
        <section className="flex flex-col w-full gap-4 max-w-xl mx-auto transition-all duration-300">
         <AnimatePresence mode="wait">
-          {isMetaDataLoading && thumbNailUrl === null ? (
+          {!isMetaDataLoading && thumbNailUrl === null ? (
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -196,12 +258,13 @@ const Editor = () => {
 
 
           <motion.form
-         p-4 initial={{ opacity: 0, y: 20 }}
+          p-4="true" initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           onSubmit={handleSubmit}
-          className="flex flex-col gap-12 border  bg-card rounded-3xl"
-        >
+          className="flex flex-col gap-12 border  bg-card rounded-3xl p-4"
+          >
+
           <div className="flex items-center gap-2 w-full">
             <input
               type="text"
@@ -338,11 +401,12 @@ const Editor = () => {
               </div>
             </div>
           </div>
+
         </motion.form>
 
 
 
-      <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait">
           {downloadCount > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
