@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -19,12 +19,26 @@ import {
   Smartphone,
   Square,
   ArrowDown,
+  Subtitles,
 } from "lucide-react";
+import { toast } from "sonner";
+import { json } from "stream/consumers";
 interface metaDataProps {
     title?: string;
     description?: string;
     thumbnail?: string;
     duration?: string;
+}
+
+export interface currUser {
+  id: string;
+  name: string;
+  email?: string;
+  is_premium: boolean;
+  curr_clips: number;
+  image?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const Editor = () => {
@@ -44,8 +58,10 @@ const Editor = () => {
   const [formats, setFormats] = useState<{format_id: string, label: string}[]>([]);
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [addSubs, setAddSubs] = useState(false);
-    const [downloadCount, setDownloadCount] = useState(0);
-
+  const [downloadCount, setDownloadCount] = useState(0);
+  const [userId , setUserId] = useState<string>("");
+  const [currUser , setCurrUser] = useState<currUser| null>(null);
+  const [showPremiumModal , setShowPremiumModal] = useState(false);
 
   const resolutionOptions = {
     original: { icon: <Monitor className="w-4 h-4" />, label: "Original" },
@@ -53,19 +69,38 @@ const Editor = () => {
     square: { icon: <Square className="w-4 h-4" />, label: "Square" },
   } as const;
 
+
   
   useEffect(() => {
     const getUser = async () => {
-      const {
+      const { // this is actually the auth user 
         data: { user },
       } = await supabase.auth.getUser();
 
-      setUser(user);
+      console.log("inside the user" , user);
+    
+      if(user){
+        setUser(user);
+        setUserId(user.id);
+      }
       setLoading(false);
     };
 
     getUser();
   }, [supabase]);
+
+  useEffect(()=> {
+    const getUserDetails = async() => {
+       const {data , error} = await supabase
+       .from("users").select("*").eq("id"  , userId).single();
+       if(error){
+         console.log("error in fetching the user details" , error.message);
+       }
+       console.log("userdetails fetched from supabase db" , data);
+       setCurrUser(data);
+    }
+    getUserDetails();
+  } , [userId]);
 
   useEffect(() => {
     const {
@@ -119,7 +154,7 @@ const Editor = () => {
             setSelectedFormat(formatData?.formats[0].format_id);
           }
         }
-        
+
       }catch(error){
      console.error("Error fetching metadata:", error);
       // Fallback to YouTube thumbnail
@@ -147,16 +182,69 @@ const Editor = () => {
     }
   } ,  [url]);
 
+
   const firstName =
     user?.user_metadata?.name?.split(" ")[0] ??
     user?.email?.split("@")[0] ??
     "User";
 
 
+  
+    // before hitting the submit buttom i have to validate something 
+    // starttime and endtime 
+    // user currentclip count 
+    // user ispremium or not 
+    //then only do the stuff 
 
-    function handleSubmit(){
+  function timeToSeconds(time : string) : number {
+    const [hours , minute , second] = time.split(':').map(Number);
+    return hours*3600 + minute*60 + second;
+  }
+  
 
+  async function handleSubmit(e : React.FormEvent){
+    e.preventDefault();
+    
+    const startSeconds : number = timeToSeconds(startTime);
+    const endSeconds : number = timeToSeconds(endTime);
+    
+    if(startSeconds >= endSeconds){
+        toast("Start time should be less than end time");
+        return ;
     }
+    
+
+
+
+    if(currUser){
+       if(currUser?.curr_clips >= 2 && currUser?.is_premium == false){
+            setShowPremiumModal(true);
+            // one more validation  like you can clip only 2 free clips 
+       }
+
+       setLoading(true);
+       try{
+          const clickOffclipp = await fetch("api/clip" , {
+            method : "POST" , 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url , 
+              startTime , 
+              endTime , 
+              cropRatio , 
+              Subtitles : addSubs , 
+              formatId : selectedFormat , 
+              userId:userId , 
+            })
+          }) 
+
+       }catch(error){ 
+          console.error("Error in handleSubmit:", error);
+       }finally{
+         setLoading(false);
+       }
+    }
+  }
 
 
   return (
@@ -418,16 +506,8 @@ const Editor = () => {
             </motion.div>
           )}
         </AnimatePresence>
-
-
-
-
-
        </section>
-
-
-
-
+       
     </main>
   );
 };

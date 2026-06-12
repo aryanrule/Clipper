@@ -66,7 +66,8 @@ async function subtitlesAdjustment(inputpath:string , outputpath:string , startT
 }
 // a little bit leftover
 export const getClipFormats = async (req : Request , res : Response) => {
-     const url = req.query.url; 
+    console.log("i am inside grtclipformat system");  
+    const url = req.query.url; 
     // const url = "https://www.youtube.com/watch?v=aOLsQN98aI4";  
     if(!url || typeof(url) != "string") {
         return res.status(400).json({
@@ -123,9 +124,9 @@ export const getClipFormats = async (req : Request , res : Response) => {
           try {
               const MAX_PIXELS = 1920 * 1080;
               const info = JSON.parse(jsondata);   
-              const output_path= path.resolve(__dirname , 'output.js');
-              console.log(output_path);
-              fs.writeFileSync(output_path , JSON.stringify(info.formats , null , 2) , "utf-8");
+              // const output_path= path.resolve(__dirname , 'output.js');
+              // console.log(output_path);
+              // fs.writeFileSync(output_path , JSON.stringify(info.formats , null , 2) , "utf-8");
               // fs.writeFileSync(path.resolve(__dirname , 'output.json') , info.formats);   
               // what i am actually looking for 
               // formatid 
@@ -199,11 +200,11 @@ const dummyData = {
 
 // not focusing currently on production path thing
 export const clipVideo = async (req:Request , res : Response) => {
-  
+  console.log("sjfjdbfbd" )
   // const url = "https://www.youtube.com/watch?v=1O0yazhqaxs";
-  const {url , startTime , endTime , formatId , subtitles  } = dummyData ;
-  const userId = getrandomUserString();  
-  if(!url || !startTime == null|| endTime == null || !formatId){
+  const {url , startTime , endTime , formatId , subtitles , userId } = req.body; 
+  // const userId = getrandomUserString();  
+  if(!url || startTime == "" || endTime == "" || !formatId){
     return res.status(400).json({
         error :"url , startTime , endTime , formatId is required" 
     })

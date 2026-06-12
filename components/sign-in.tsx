@@ -45,7 +45,8 @@ export default function SignInModal({trigger} : SignInModalProps){
      });
      
     } finally {
-    setLoading(false);
+      
+      setLoading(false);
     }}
 
     

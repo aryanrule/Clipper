@@ -1,5 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- // for now take this as a supabase grunt and after you complete your project then make a new migration file and push to the remote 
 
 -- // jobstatus schema for the micro-backend only 
 CREATE TABLE jobs (
@@ -34,12 +35,14 @@ CREATE TABLE users (
     id UUID PRIMARY KEY REFERENCES auth.users(id),
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
-    premium BOOLEAN NOT NULL DEFAULT FALSE,
-    clip_limit INTEGER NOT NULL DEFAULT 2,
+    is_premium BOOLEAN NOT NULL DEFAULT FALSE,
+    curr_clips INTEGER NOT NULL DEFAULT 0,
     image TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+
 
 
 
