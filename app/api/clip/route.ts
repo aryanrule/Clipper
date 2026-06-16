@@ -53,14 +53,14 @@ export async function POST(request: NextRequest) {
 
 
     
-    // const backendResponse = await backendRes.json();
+    const backendResponse = await backendRes.json();
    
     console.log(
       "response from backend",
-      // backendResponse
+      backendResponse
     );
 
-    return NextResponse.json("{subdbdbf}");
+    return NextResponse.json(backendResponse); 
   } catch (error) {
     console.error("Clip API error:", error);
     return NextResponse.json(

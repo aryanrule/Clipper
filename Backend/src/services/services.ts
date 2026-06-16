@@ -450,7 +450,7 @@ export const clipVideo = async (req:Request , res : Response) => {
         }
     }
   })();
-
+  
   return res.status(202).json({id : ID});
 };
 
@@ -479,7 +479,8 @@ export const getClipWithID = async (req: Request, res: Response) => {
         message: "Job not found",
       });
     }
-
+    
+    // working on kind of a pooling behoviors 
     return res.status(200).json({
       success: true,
       id: job.id,

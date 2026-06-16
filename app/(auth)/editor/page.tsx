@@ -238,6 +238,53 @@ const Editor = () => {
             })
           }) 
 
+          if(!clickOffclipp.ok){
+            const errJson = await clickOffclipp.json().catch(() => ({}));
+            throw new Error(errJson.error || "Failed to start processing");
+          }
+
+          console.log("hellooo worldl"); 
+          const { id } = (await clickOffclipp.json()) as { id: string };
+          console.log("id" , id); 
+          // start pooling 
+          type jobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+          interface jobsStatusResponse {
+            status : jobStatus , 
+            error?:string , 
+            url?:string , 
+          }
+          let status : jobStatus = "processing";
+          while(status === "processing" || status === "pending"){ 
+                await new Promise((resolve) => {
+                  setTimeout(() => {
+                    resolve("true");
+                  }, 3000);
+                }); // pool or wait for 3 second
+               
+                const pollRes = await fetch( `api/clip/${id}`);
+                if (!pollRes.ok) throw new Error("Failed to poll job status");
+                const pollJson = (await pollRes.json()) as jobsStatusResponse;
+                status = pollJson.status;
+                if (status === "failed") throw new Error(pollJson.error || "Processing failed");
+                console.log("status right now" , status); 
+          }
+          
+          const downloadRes = await fetch(`api/clip/${id}/download`);
+          if(!downloadRes.ok){
+             throw new Error("Failed to download clip");
+          }
+
+          const blob = await downloadRes.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          a.download = "clip.mp4";
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(downloadUrl);
+          a.remove();
+
+
        }catch(error){ 
           console.error("Error in handleSubmit:", error);
        }finally{
