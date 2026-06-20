@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     await supabase.auth.exchangeCodeForSession(code);
 
     const {
-      data: { user },
+      data: { user }
     } = await supabase.auth.getUser();
 
     if (user) { // upsert if not present it will going to make the row 

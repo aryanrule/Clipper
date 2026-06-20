@@ -12,7 +12,7 @@ export async function GET(request:NextRequest , response : NextResponse){
     const backendUrl = process.env.BACKEND_API_URL || 'http://localhost:3002';
     console.log("backend url" , backendUrl);  
     try{
-         console.log("teri maakiii" , `${backendUrl}/api/formats?url=${url}`)
+        //  console.log("teri maakiii" , `${backendUrl}/api/format?url=${url}`)
          const response = await fetch(`${backendUrl}/api/format?url=${encodeURIComponent(url)}`)
          if (!response.ok) {
          const errorData = await response.json().catch(() => ({ error: 'Failed to fetch formats from backend' }));

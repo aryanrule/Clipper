@@ -1,8 +1,8 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, number } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
@@ -19,12 +19,26 @@ import {
   Smartphone,
   Square,
   ArrowDown,
+  Subtitles,
 } from "lucide-react";
+import { toast } from "sonner";
+import { json } from "stream/consumers";
 interface metaDataProps {
     title?: string;
     description?: string;
     thumbnail?: string;
     duration?: string;
+}
+
+export interface currUserProps {
+  id: string;
+  name: string;
+  email?: string;
+  is_premium: boolean;
+  curr_clips: number;
+  image?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const Editor = () => {
@@ -44,8 +58,11 @@ const Editor = () => {
   const [formats, setFormats] = useState<{format_id: string, label: string}[]>([]);
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [addSubs, setAddSubs] = useState(false);
-    const [downloadCount, setDownloadCount] = useState(0);
-
+  // const [downloadCount, setDownloadCount] = useState(0);
+  const [userId , setUserId] = useState<string>("");
+  const [currUser , setCurrUser] = useState<currUserProps| null>(null);
+  const [showPremiumModal , setShowPremiumModal] = useState(false);
+  const [currclipCount , setCurrClipCount] = useState<number| null>(null);
 
   const resolutionOptions = {
     original: { icon: <Monitor className="w-4 h-4" />, label: "Original" },
@@ -53,19 +70,41 @@ const Editor = () => {
     square: { icon: <Square className="w-4 h-4" />, label: "Square" },
   } as const;
 
+
   
   useEffect(() => {
     const getUser = async () => {
-      const {
+      const { // this is actually the auth user 
         data: { user },
       } = await supabase.auth.getUser();
 
-      setUser(user);
+      console.log("inside the user" , user);
+    
+      if(user){
+        setUser(user);
+        setUserId(user.id);
+      }
       setLoading(false);
     };
 
     getUser();
   }, [supabase]);
+
+  useEffect(()=> {
+    const getUserDetails = async() => {
+       const {data , error } = await supabase
+       .from("users").select("*").eq("id"  , userId).single() as {data : currUserProps | null , error : any};
+       if(error){
+         console.log("error in fetching the user details" , error.message);
+       }
+       if(data){
+         setCurrUser(data);
+         setCurrClipCount(data.curr_clips);
+       }
+    }
+    console.log("userId" , userId);
+    getUserDetails();
+  } , [userId]);
 
   useEffect(() => {
     const {
@@ -78,6 +117,10 @@ const Editor = () => {
       subscription.unsubscribe();
     };
   }, [supabase]);
+
+  useEffect(() => {
+      console.log("this is my currentClipCount" , currclipCount); 
+  } , [currclipCount])
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -119,7 +162,7 @@ const Editor = () => {
             setSelectedFormat(formatData?.formats[0].format_id);
           }
         }
-        
+
       }catch(error){
      console.error("Error fetching metadata:", error);
       // Fallback to YouTube thumbnail
@@ -147,17 +190,148 @@ const Editor = () => {
     }
   } ,  [url]);
 
+
   const firstName =
     user?.user_metadata?.name?.split(" ")[0] ??
     user?.email?.split("@")[0] ??
     "User";
 
 
+  
+    // before hitting the submit buttom i have to validate something 
+    // starttime and endtime 
+    // user currentclip count 
+    // user ispremium or not 
+    //then only do the stuff 
 
-    function handleSubmit(){
+  function timeToSeconds(time : string) : number {
+    const [hours , minute , second] = time.split(':').map(Number);
+    return hours*3600 + minute*60 + second;
+  }
+  
 
+  async function handleSubmit(e : React.FormEvent){
+    e.preventDefault();
+    
+    const startSeconds : number = timeToSeconds(startTime);
+    const endSeconds : number = timeToSeconds(endTime);
+    
+    if(startSeconds >= endSeconds){
+        toast("Start time should be less than end time");
+        return ;
     }
+    
+    
 
+
+    if(currUser){
+       if(currUser?.curr_clips >= 2 && currUser?.is_premium == false){
+            toast("bhaai upgrade krlee");
+            setShowPremiumModal(true);
+            return // comment this line 
+            // one more validation  like you can clip only 2 free clips 
+       }
+
+       setLoading(true);
+       try{
+          // user may tweak browser 
+          // check the premium thing on the nextjs server also
+          const clickOffclipp = await fetch("api/clip" , {
+            method : "POST" , 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url , 
+              startTime , 
+              endTime , 
+              cropRatio , 
+              Subtitles : addSubs , 
+              formatId : selectedFormat , 
+              userId:userId , 
+            })
+          }) 
+
+          if(!clickOffclipp.ok){
+            const errJson = await clickOffclipp.json().catch(() => ({}));
+            throw new Error(errJson.error || "Failed to start processing");
+          }
+
+          // console.log("hellooo worldl");
+          const { id } = (await clickOffclipp.json()) as { id: string };
+          console.log("id" , id); 
+          // start pooling 
+          type jobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+          interface jobsStatusResponse {
+            status : jobStatus , 
+            error?:string , 
+            url?:string , 
+          }
+          let status : jobStatus = "processing";
+          while(status === "processing" || status === "pending"){ 
+                await new Promise((resolve) => {
+                  setTimeout(() => {
+                    resolve("true");
+                  }, 3000);
+                }); // pool or wait for 3 second
+               
+                const pollRes = await fetch( `api/clip/${id}`);
+                if (!pollRes.ok) throw new Error("Failed to poll job status");
+                const pollJson = (await pollRes.json()) as jobsStatusResponse;
+                status = pollJson.status;
+                if (status === "failed") throw new Error(pollJson.error || "Processing failed");
+                console.log("status right now" , status); 
+          }
+          
+          const downloadRes = await fetch(`api/clip/${id}/download`);
+          if(!downloadRes.ok){
+             throw new Error("Failed to download clip");
+          }
+
+          const blob = await downloadRes.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          a.download = "clip.mp4";
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(downloadUrl);
+          a.remove();
+
+
+          // increament the download count in db also
+          // make an api call update the download count
+
+          const response = await fetch("/api/clipcount", {
+            method: "POST",
+          });
+
+          if (!response.ok) {
+            console.log("Failed to update clip count");
+          }
+          else {
+            console.log("Clip count updated");
+            setCurrClipCount((prev) => (prev ?? 0)+1);
+            setCurrUser((prev) => {
+              if (prev === null) return null;
+
+              return {
+                ...prev,
+                curr_clips: prev.curr_clips + 1
+              };
+            });
+          }
+
+
+       }catch(error){ 
+          console.error("Error in handleSubmit:", error);
+       }finally{
+         setLoading(false);
+       }
+    }
+  }
+  
+  useEffect(() => {
+    console.log("currUser" , currUser); 
+  } , [currUser]);
 
   return (
     <main className="flex flex-col w-full h-full min-h-screen p-4 gap-4 max-w-3xl mx-auto items-center justify-center">
@@ -407,27 +581,19 @@ const Editor = () => {
 
 
         <AnimatePresence mode="wait">
-          {downloadCount > 0 && (
+          {(currclipCount ?? 0 ) > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               className="text-center mt-4 text-sm text-muted-foreground"
             >
-              🔥 {downloadCount} banger{downloadCount > 1 && "s"} clipped
+              🔥 {currclipCount} banger{(currclipCount ?? 0) > 1 && "s"} clipped
             </motion.div>
           )}
         </AnimatePresence>
-
-
-
-
-
        </section>
-
-
-
-
+       
     </main>
   );
 };

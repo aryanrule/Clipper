@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "../components/theme-provider";
 import { Host_Grotesk } from "next/font/google";
+import { Toaster } from "sonner";
 
 import { GradientBackground } from "../components/GradientBackground";
 import './global.css';
@@ -83,7 +84,7 @@ export default function RootLayout({
         >
           <GradientBackground />
           {children}
-          {/* <Toaster /> */}
+          <Toaster />
         </ThemeProvider>
 
       </body>
