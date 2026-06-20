@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
       data: { user },
       error,
     } = await supabase.auth.getUser();
-
+    console.log("user when you hitt" , user);
     if (error || !user) {
       return NextResponse.json(
         {
@@ -21,6 +21,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // check weather the user is premium and thc count is lesser than equal to 2 if not premium 
+    const {data , error : err} = await supabase.from("users").select("*").eq("id" , user.id).single();
+    if(err || !data){
+      return NextResponse.json("not able to find the id ");
+    }
+    
+    if(data.curr_clips >= 2 && !data.is_premium){
+      return NextResponse.json(
+        {
+          message: "You have reached your free clip limit. Upgrade to premium."
+        },
+        { status: 403 }
+      );
+    }
+
+    // console.log("data" , data); 
     const body = await request.json();
 
     const backend_payload = {

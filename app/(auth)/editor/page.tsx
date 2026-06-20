@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, number } from "motion/react";
 import { Button } from "@/components/ui/button";
 import React, { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser-client";
@@ -30,7 +30,7 @@ interface metaDataProps {
     duration?: string;
 }
 
-export interface currUser {
+export interface currUserProps {
   id: string;
   name: string;
   email?: string;
@@ -58,10 +58,11 @@ const Editor = () => {
   const [formats, setFormats] = useState<{format_id: string, label: string}[]>([]);
   const [selectedFormat, setSelectedFormat] = useState<string>('');
   const [addSubs, setAddSubs] = useState(false);
-  const [downloadCount, setDownloadCount] = useState(0);
+  // const [downloadCount, setDownloadCount] = useState(0);
   const [userId , setUserId] = useState<string>("");
-  const [currUser , setCurrUser] = useState<currUser| null>(null);
+  const [currUser , setCurrUser] = useState<currUserProps| null>(null);
   const [showPremiumModal , setShowPremiumModal] = useState(false);
+  const [currclipCount , setCurrClipCount] = useState<number| null>(null);
 
   const resolutionOptions = {
     original: { icon: <Monitor className="w-4 h-4" />, label: "Original" },
@@ -91,14 +92,17 @@ const Editor = () => {
 
   useEffect(()=> {
     const getUserDetails = async() => {
-       const {data , error} = await supabase
-       .from("users").select("*").eq("id"  , userId).single();
+       const {data , error } = await supabase
+       .from("users").select("*").eq("id"  , userId).single() as {data : currUserProps | null , error : any};
        if(error){
          console.log("error in fetching the user details" , error.message);
        }
-       console.log("userdetails fetched from supabase db" , data);
-       setCurrUser(data);
+       if(data){
+         setCurrUser(data);
+         setCurrClipCount(data.curr_clips);
+       }
     }
+    console.log("userId" , userId);
     getUserDetails();
   } , [userId]);
 
@@ -113,6 +117,10 @@ const Editor = () => {
       subscription.unsubscribe();
     };
   }, [supabase]);
+
+  useEffect(() => {
+      console.log("this is my currentClipCount" , currclipCount); 
+  } , [currclipCount])
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -213,17 +221,21 @@ const Editor = () => {
         return ;
     }
     
-
+    
 
 
     if(currUser){
        if(currUser?.curr_clips >= 2 && currUser?.is_premium == false){
+            toast("bhaai upgrade krlee");
             setShowPremiumModal(true);
+            return // comment this line 
             // one more validation  like you can clip only 2 free clips 
        }
 
        setLoading(true);
        try{
+          // user may tweak browser 
+          // check the premium thing on the nextjs server also
           const clickOffclipp = await fetch("api/clip" , {
             method : "POST" , 
             headers: { "Content-Type": "application/json" },
@@ -243,7 +255,7 @@ const Editor = () => {
             throw new Error(errJson.error || "Failed to start processing");
           }
 
-          console.log("hellooo worldl"); 
+          // console.log("hellooo worldl");
           const { id } = (await clickOffclipp.json()) as { id: string };
           console.log("id" , id); 
           // start pooling 
@@ -285,6 +297,30 @@ const Editor = () => {
           a.remove();
 
 
+          // increament the download count in db also
+          // make an api call update the download count
+
+          const response = await fetch("/api/clipcount", {
+            method: "POST",
+          });
+
+          if (!response.ok) {
+            console.log("Failed to update clip count");
+          }
+          else {
+            console.log("Clip count updated");
+            setCurrClipCount((prev) => (prev ?? 0)+1);
+            setCurrUser((prev) => {
+              if (prev === null) return null;
+
+              return {
+                ...prev,
+                curr_clips: prev.curr_clips + 1
+              };
+            });
+          }
+
+
        }catch(error){ 
           console.error("Error in handleSubmit:", error);
        }finally{
@@ -292,7 +328,10 @@ const Editor = () => {
        }
     }
   }
-
+  
+  useEffect(() => {
+    console.log("currUser" , currUser); 
+  } , [currUser]);
 
   return (
     <main className="flex flex-col w-full h-full min-h-screen p-4 gap-4 max-w-3xl mx-auto items-center justify-center">
@@ -542,14 +581,14 @@ const Editor = () => {
 
 
         <AnimatePresence mode="wait">
-          {downloadCount > 0 && (
+          {(currclipCount ?? 0 ) > 0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               className="text-center mt-4 text-sm text-muted-foreground"
             >
-              🔥 {downloadCount} banger{downloadCount > 1 && "s"} clipped
+              🔥 {currclipCount} banger{(currclipCount ?? 0) > 1 && "s"} clipped
             </motion.div>
           )}
         </AnimatePresence>

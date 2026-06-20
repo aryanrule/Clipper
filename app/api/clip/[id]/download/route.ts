@@ -20,15 +20,28 @@ export async function GET(request : NextRequest , {params} : {params : Promise<{
       if(!downloadRes.ok){
       return NextResponse.json({ error: 'Failed to download from Supabase' }, { status: 500 });
       }
-      console.log("downloadRes" , downloadRes); 
-      const blob = await downloadRes.blob();
-      console.log("blob" , blob);
+        const blob = await downloadRes.blob();
+      
+        try{
+          const cleanUpRes = await fetch(`${request.nextUrl.origin}/api/clip/${id}/cleanup` , {method:'DELETE'});
+          
+          if (!cleanUpRes.ok) {
+            console.warn(`Failed to clean up job ${id}:`, await cleanUpRes.text());
+          } else {
+            console.log(`Successfully cleaned up job ${id}`);
+          }
+
+        }catch(cleanupErr){
+          console.error(`Cleanup error for job ${id}:`, cleanupErr); 
+        }
+
         return new NextResponse(blob, {
          headers: {
         'Content-Type': 'video/mp4',
         'Content-Disposition': 'attachment; filename="clip.mp4"',
-      },
+        },
     });
+
     }catch(error){
          console.error('Download route error:', error);
          return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

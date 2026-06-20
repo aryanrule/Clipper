@@ -17,6 +17,7 @@ export async function GET(
     const headers = new Headers();
     backendRes.headers.forEach((value, key) => {
       if ([
+        
         "content-type",
         "content-length",
         "content-disposition",
