@@ -235,17 +235,13 @@ export const clipVideo = async (req:Request , res : Response) => {
 
     try {
        const section = `*${startTime}-${endTime}`;
-       // leaving the prod cookie code 
-       // first i need some yt-args very imp to spawn it 
-       // spawn it 
-       // process the valid validation 
-       // do the subtitles stuff 
-       // let the ffmpeg handles the rest 
-       // after that upload your clip to supabase bucket 
-       // get the databack 
-       // remove the localpath 
-       // update the finaljobstatus 
-       // return the id the actuall createJobId
+
+      const prodCookiesPath = '/etc/secrets/cookies.txt';
+      if (fs.existsSync(prodCookiesPath)) {
+        const cookiesContent = fs.readFileSync(prodCookiesPath, 'utf-8');
+        tempcookiePath = path.join(uploadPath, `cookies-${ID}.txt`);
+        fs.writeFileSync(tempcookiePath, cookiesContent);
+      }
        const prodCookPath = '/etc/secrets/cookies.txt';
        if(fs.existsSync(prodCookPath)){
           const cookieContent = fs.readFileSync(prodCookPath);
