@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
     
     if(data.curr_clips >= 2 && !data.is_premium){
       return NextResponse.json(
-        {
+        { 
+          code : 9  , 
           message: "You have reached your free clip limit. Upgrade to premium."
         },
         { status: 403 }
