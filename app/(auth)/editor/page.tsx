@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { json } from "stream/consumers";
+import Buy from "@/components/buy";
 interface metaDataProps {
     title?: string;
     description?: string;
@@ -122,6 +123,8 @@ const Editor = () => {
       console.log("this is my currentClipCount" , currclipCount); 
   } , [currclipCount])
 
+
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     setUser(null);
@@ -196,6 +199,7 @@ const Editor = () => {
     user?.email?.split("@")[0] ??
     "User";
 
+  
 
   
     // before hitting the submit buttom i have to validate something 
@@ -226,8 +230,9 @@ const Editor = () => {
 
     if(currUser){
        if(currUser?.curr_clips >= 2 && currUser?.is_premium == false){
-            toast("bhaai upgrade krlee");
+            // toast("bhaai upgrade krlee");
             setShowPremiumModal(true);
+            
             return // comment this line 
             // one more validation  like you can clip only 2 free clips 
        }
@@ -332,6 +337,8 @@ const Editor = () => {
   useEffect(() => {
     console.log("currUser" , currUser); 
   } , [currUser]);
+
+  
 
   return (
     <main className="flex flex-col w-full h-full min-h-screen p-4 gap-4 max-w-3xl mx-auto items-center justify-center">
@@ -594,8 +601,16 @@ const Editor = () => {
         </AnimatePresence>
        </section>
        
+      {
+        showPremiumModal && (<Buy open={showPremiumModal} onOpenChange={setShowPremiumModal}/>)
+      } 
     </main>
   );
 };
 
 export default Editor;
+
+// leftover 
+// check the user is premium or not from the baclend 
+// check the currclipcount from the baclend 
+// useeffect 

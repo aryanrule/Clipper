@@ -1,20 +1,23 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server-client";
 import { NextRequest , NextResponse } from "next/server";
-
-
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 // target 
 // clean the bucket 
 // clean the job also
 
 
+// the error is not able to find the bucket 
+
 export async function DELETE(request : NextRequest , { params }: { params: Promise<{ id: string }> }){
     try {
       const {id} = await params;
-      const supabase = await createSupabaseServerClient();
-      const bucket = process.env.SUPABSE_BUCKET || "videos";
+      const supabase = createSupabaseAdminClient();
+      const bucket = process.env.SUPABASE_BUCKET || "videos";
+
 
       console.log(`[cleanup] Verifying access to bucket: ${bucket}`);
       const { data: bucketList, error: bucketError } = await supabase.storage.listBuckets();
+      
       if (bucketError) {
         console.error(`[cleanup] Bucket access error:`, bucketError);
         return NextResponse.json({ error: 'Cannot access storage buckets' }, { status: 500 });
@@ -30,9 +33,9 @@ export async function DELETE(request : NextRequest , { params }: { params: Promi
       const backendUrl = process.env.BACKEND_API_URL;
       const statusRes = await fetch(`${backendUrl}/api/clip/${id}`);
       if (!statusRes.ok) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
-     
+        return NextResponse.json({ error: 'Job not found' }, { status: 404 });
       }
+
     
       const jobData = await statusRes.json();
       console.log(`[cleanup] Job data for ${id}:`, jobData);
@@ -77,6 +80,7 @@ export async function DELETE(request : NextRequest , { params }: { params: Promi
 
     try {
       console.log(`[cleanup] Calling backend cleanup for job ${id}`);
+      console.log("delete api" , `${backendUrl}/api/clip/${id}/cleanup`)
       const backendCleanupRes = await fetch(`${backendUrl}/api/clip/${id}/cleanup`, {
         method: 'DELETE'
       });

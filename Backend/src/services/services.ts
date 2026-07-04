@@ -75,11 +75,19 @@ export const getClipFormats = async (req : Request , res : Response) => {
             success:false , 
         })
      }
+     
+     let tempcookiePath : string | null = null;
 
      try {
 
-       //  production cookie  path leftover
-       // the tempcookies path is leftover
+      const prodCookiesPath = '/etc/secrets/cookies.txt';
+      if (fs.existsSync(prodCookiesPath)) {
+      const cookiesContent = fs.readFileSync(prodCookiesPath, 'utf-8');
+      const jobId = createJobId();
+      tempcookiePath = path.join(uploadPath, `cookies-${jobId}.txt`);
+      fs.writeFileSync(tempcookiePath, cookiesContent);
+      }
+
       const ytDlp_path = path.resolve(__dirname , "../../bin/yt-dlp.exe");
       const ytArgs = [
       '-j', 
@@ -124,17 +132,6 @@ export const getClipFormats = async (req : Request , res : Response) => {
           try {
               const MAX_PIXELS = 1920 * 1080;
               const info = JSON.parse(jsondata);   
-              // const output_path= path.resolve(__dirname , 'output.js');
-              // console.log(output_path);
-              // fs.writeFileSync(output_path , JSON.stringify(info.formats , null , 2) , "utf-8");
-              // fs.writeFileSync(path.resolve(__dirname , 'output.json') , info.formats);   
-              // what i am actually looking for 
-              // formatid 
-              // label 
-              // hasaudio 
-              // heigh * width <= maxpixels 
-              // ext 
-
               const videoformats = info.formats.filter((f:any) => 
                   f.vcodec !== 'none' && 
                   f.height && f.width && 
@@ -146,7 +143,7 @@ export const getClipFormats = async (req : Request , res : Response) => {
                   hasaudio : f.acodec !== 'none' , 
                   ext : f.ext , 
               })).sort((a:any , b:any) => b.height - a.height);
-              console.log("video formats" , videoformats);  
+              // console.log("video formats" , videoformats);  
               
               // filter now
               //prefering formats with audio 
@@ -160,7 +157,7 @@ export const getClipFormats = async (req : Request , res : Response) => {
                     }
                     return acc;
               } , []);
-              console.log(uniqueFormats); 
+              // console.log(uniqueFormats); 
 
               const formated_clips = uniqueFormats.map((item: any) => ({
                  format_id : item.hasaudio ? item.format_id : `${item.format_id}+bestaudio`,
@@ -179,7 +176,12 @@ export const getClipFormats = async (req : Request , res : Response) => {
       })
 
      }catch(error : unknown){
-        console.log(error); 
+        if (tempcookiePath && fs.existsSync(tempcookiePath)) {
+        fs.unlinkSync(tempcookiePath);
+        }
+        console.error(`[formats] failed`, error);
+        const message = error instanceof Error ? error.message : String(error);
+        return res.status(500).json({ error: message });
      }
 }
 
@@ -200,10 +202,7 @@ const dummyData = {
 
 // not focusing currently on production path thing
 export const clipVideo = async (req:Request , res : Response) => {
-  console.log("sjfjdbfbd" )
-  // const url = "https://www.youtube.com/watch?v=1O0yazhqaxs";
   const {url , startTime , endTime , formatId , subtitles , userId } = req.body; 
-  // const userId = getrandomUserString();  
   if(!url || startTime == "" || endTime == "" || !formatId){
     return res.status(400).json({
         error :"url , startTime , endTime , formatId is required" 
@@ -235,17 +234,13 @@ export const clipVideo = async (req:Request , res : Response) => {
 
     try {
        const section = `*${startTime}-${endTime}`;
-       // leaving the prod cookie code 
-       // first i need some yt-args very imp to spawn it 
-       // spawn it 
-       // process the valid validation 
-       // do the subtitles stuff 
-       // let the ffmpeg handles the rest 
-       // after that upload your clip to supabase bucket 
-       // get the databack 
-       // remove the localpath 
-       // update the finaljobstatus 
-       // return the id the actuall createJobId
+
+      const prodCookiesPath = '/etc/secrets/cookies.txt';
+      if (fs.existsSync(prodCookiesPath)) {
+        const cookiesContent = fs.readFileSync(prodCookiesPath, 'utf-8');
+        tempcookiePath = path.join(uploadPath, `cookies-${ID}.txt`);
+        fs.writeFileSync(tempcookiePath, cookiesContent);
+      }
        const prodCookPath = '/etc/secrets/cookies.txt';
        if(fs.existsSync(prodCookPath)){
           const cookieContent = fs.readFileSync(prodCookPath);
@@ -314,8 +309,7 @@ export const clipVideo = async (req:Request , res : Response) => {
           yt.on('error' , reject);
        });
        const fastpath = path.join(uploadPath , `clip-${ID}-fast.mp4`);  
-       console.log("fastpath" , fastpath);  
-       console.log("outputpath", outputpath);  
+      
        const subpath = outputpath.replace(/\.mp4$/ , ".en.vtt");
        const subtitles_exists = fs.existsSync(subpath); 
        if(subtitles_exists){
@@ -325,11 +319,8 @@ export const clipVideo = async (req:Request , res : Response) => {
        // adjusting subtitles time stamps 
        if(subtitles && subtitles_exists){
           const adjustedPath = path.join(uploadPath , `clip-${ID}-adjustment.vtt`);
-          console.log(adjustedPath);
           await subtitlesAdjustment(subpath , adjustedPath , startTime);
           await fs.promises.rename(adjustedPath , subpath);
-          console.log("subpath" , subpath);
-          console.log("adjustmentpath" , adjustedPath) 
               
        }
        await new Promise<void>((resolve , reject) => {
@@ -389,16 +380,12 @@ export const clipVideo = async (req:Request , res : Response) => {
         ff.on('error' , reject);
         })
 
-        console.log("finaloutputpath" , outputpath);  
-        console.log("fastpath" , fastpath);  
         await fs.promises.unlink(outputpath).catch(()=>{});
         await fs.promises.rename(fastpath  , outputpath); // the fastpathcontent
-        console.log(fastpath); 
-        console.log("saara kaam hpgya hai"); 
+       
         const objectpath =  `clip-${ID}.mp4`;
         
         // i need to store this clip in supabase now
-        console.log(`uploading clip with id ${ID} uploading to supabase`);
 
         const fileBuffer = await fs.promises.readFile(outputpath);
         const {error : uploadError} = await supabase.storage.from(BUCKET)
