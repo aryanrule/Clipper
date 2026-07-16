@@ -4,9 +4,8 @@ import path from "path"
 import fs from "fs";
 import { spawn } from "child_process";
 import { getSupabase } from "../database/supabase";
-// src/config/supabaseClient.ts
 
-// import { createClient } from '@supabase/supabase-js';
+
 
 const supabase = getSupabase();  
 // console.log(supabase);   
