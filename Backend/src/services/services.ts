@@ -3,12 +3,10 @@ import { Request ,Response } from "express"
 import path from "path"
 import fs from "fs";
 import { spawn } from "child_process";
-import { unique } from "next/dist/build/utils";
 import { getSupabase } from "../database/supabase";
-import { error } from "console";
 // src/config/supabaseClient.ts
 
-import { createClient } from '@supabase/supabase-js';
+// import { createClient } from '@supabase/supabase-js';
 
 const supabase = getSupabase();  
 // console.log(supabase);   
@@ -83,7 +81,9 @@ const dummyData = {
 
 // a little bit leftover
 // i think i need to validate also authoziation here makes sense 
-
+  const ytDlp_path = process.env.NODE_ENV === "production"
+          ? "yt-dlp"
+         : path.resolve(__dirname, "../../bin/yt-dlp.exe");   
 
 export const getClipFormats = async (req : Request , res : Response) => {
     console.log("i am inside grtclipformat system");  
@@ -107,8 +107,8 @@ export const getClipFormats = async (req : Request , res : Response) => {
       tempcookiePath = path.join(uploadPath, `cookies-${jobId}.txt`);
       fs.writeFileSync(tempcookiePath, cookiesContent);
       }
-      
-      const ytDlp_path = path.resolve(__dirname , "../../bin/yt-dlp.exe");
+        
+
       const ytArgs = [
       '-j', 
       '--no-warnings',
@@ -324,7 +324,7 @@ export const clipVideo = async (req:Request , res : Response) => {
           }
        }
        console.log(`job${ID} starting out the yt-dlp process`)
-       const yt = spawn(path.resolve(__dirname , "../../bin/yt-dlp.exe") , ytArgs);
+       const yt = spawn(ytDlp_path , ytArgs);
        yt.stderr.on('data', d =>  console.log(`job${ID} with error` ,  d.toString()));
        
        await new Promise<void>((resolve , reject)=>{
