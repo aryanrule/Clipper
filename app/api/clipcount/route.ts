@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server-client";
-import { createBrowserClient } from "@supabase/ssr";
+
+
 export async function POST(request: NextRequest) {
 
   const supabase = await createSupabaseServerClient();
