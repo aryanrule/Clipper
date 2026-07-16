@@ -37,7 +37,7 @@ function createJobId () : string {
 
 function timeTosecond(timeStr : string):number{
     const parts = timeStr.split(':');
-    return parseInt(parts[2]) *3600 + parseInt(parts[1])*60 + parseInt(parts[0])*60; 
+    return parseInt(parts[2]) *3600 + parseInt(parts[1])*60 + parseInt(parts[0]); 
 }
 
 function secondsToTime(seconds : number) : string{
@@ -64,7 +64,27 @@ async function subtitlesAdjustment(inputpath:string , outputpath:string , startT
      console.log("i am wriring content in adjustment.vtt");  
     await fs.promises.writeFile(outputpath , adjustedContent , 'utf-8');
 }
+
+
+
+function getrandomUserString() : string {
+   return "user_"+ Math.random().toString();
+}
+
+const dummyData = {
+  url: "https://www.youtube.com/watch?v=ok61RWVttRw", 
+  startTime: "00:00:04", 
+  endTime: "00:00:08",   
+  formatId: "91",
+  subtitles: false,  
+  userId: "user_12345"
+};
+
+
 // a little bit leftover
+// i think i need to validate also authoziation here makes sense 
+
+
 export const getClipFormats = async (req : Request , res : Response) => {
     console.log("i am inside grtclipformat system");  
     const url = req.query.url; 
@@ -87,7 +107,7 @@ export const getClipFormats = async (req : Request , res : Response) => {
       tempcookiePath = path.join(uploadPath, `cookies-${jobId}.txt`);
       fs.writeFileSync(tempcookiePath, cookiesContent);
       }
-
+      
       const ytDlp_path = path.resolve(__dirname , "../../bin/yt-dlp.exe");
       const ytArgs = [
       '-j', 
@@ -176,28 +196,18 @@ export const getClipFormats = async (req : Request , res : Response) => {
       })
 
      }catch(error : unknown){
-        if (tempcookiePath && fs.existsSync(tempcookiePath)) {
-        fs.unlinkSync(tempcookiePath);
-        }
         console.error(`[formats] failed`, error);
         const message = error instanceof Error ? error.message : String(error);
         return res.status(500).json({ error: message });
+     } finally {
+        if (tempcookiePath && fs.existsSync(tempcookiePath)) {
+          fs.unlinkSync(tempcookiePath);
+        }
      }
 }
 
 
-function getrandomUserString() : string {
-   return "user_"+ Math.random().toString();
-}
 
-const dummyData = {
-  url: "https://www.youtube.com/watch?v=ok61RWVttRw", 
-  startTime: "00:00:04", 
-  endTime: "00:00:08",   
-  formatId: "91",
-  subtitles: false,  
-  userId: "user_12345"
-};
 
 
 // not focusing currently on production path thing
@@ -208,6 +218,27 @@ export const clipVideo = async (req:Request , res : Response) => {
         error :"url , startTime , endTime , formatId is required" 
     })
   }
+
+  // user validation 
+  if (!userId) {
+  return res.status(400).json({
+    error: "userId is required",
+   });
+  }
+  
+  const {data : user , error : userError} = await supabase.from("users")
+  .select("id , is_premium , curr_clips")
+  .eq("id" , userId)
+  .single();
+  
+  if(userError || !user){
+    return res.status(404).json({
+     error: "User not found",
+    });
+  }
+
+  // console.log("user " , user);  /
+
   const ID = createJobId();
   const initialjobData : jobsStatus = {
       id: ID , 
