@@ -11,10 +11,13 @@ const router = Router();
 console.log("clip routes loaded");
 
 router.get('/debug' , (req , res) => {
-    const yt = spawn("yt-dlp", [
-    "--version"
-  ]);
-
+   const yt = spawn("yt-dlp", [
+  "--cookies",
+  "/etc/secrets/cookies.txt",
+  "--print",
+  "id",
+  "https://www.youtube.com/watch?v=lWBj9z2xDDs",
+]);
   let out = "";
   let err = "";
 
