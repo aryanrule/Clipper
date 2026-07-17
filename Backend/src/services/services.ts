@@ -102,6 +102,7 @@ export const getClipFormats = async (req : Request , res : Response) => {
      try {
 
       const prodCookiesPath = '/etc/secrets/cookies.txt';
+
       if (fs.existsSync(prodCookiesPath)) {
       const cookiesContent = fs.readFileSync(prodCookiesPath, 'utf-8');
       console.log(fs.readFileSync(prodCookiesPath, "utf8").slice(0, 200));
@@ -113,30 +114,31 @@ export const getClipFormats = async (req : Request , res : Response) => {
         console.log("prodcookiiepathdontexist"); 
       }
       
-       
+      
 
-      const ytArgs = [
-      '-j', 
-      '--no-warnings',
-      '--no-check-certificates',
-      '--add-header',
-      'referer:youtube.com',
-      '--add-header',
-      'user-agent:Mozilla/5.0',
-       url as string
-      ];
+      const ytArgs: string[] = [];
 
-
-      if(tempcookiePath){
-        ytArgs.push("--cookies" , tempcookiePath);
-      }else {
-        const localCookiesPath = path.join(__dirname , "cookies.txt");
-        console.log("localcookiepath" , localCookiesPath);
-        if(fs.existsSync(localCookiesPath)){
-          ytArgs.push("--cookies" , localCookiesPath);
+      if (tempcookiePath) {
+        ytArgs.push("--cookies", tempcookiePath);
+      } else {
+        const localCookiesPath = path.join(__dirname, "cookies.txt");
+        if (fs.existsSync(localCookiesPath)) {
+          ytArgs.push("--cookies", localCookiesPath);
         }
       }
 
+      ytArgs.push(
+        "-j",
+        "--no-warnings",
+        "--no-check-certificates",
+        "--add-header",
+        "Referer:https://www.youtube.com/",
+        "--add-header",
+        "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+        url
+      );
+
+      console.log(ytArgs);
       
       const timeout = setTimeout(() => {
         console.log("[formats] timeout reached . killing yt-dlp process");
