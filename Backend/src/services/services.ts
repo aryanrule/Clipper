@@ -104,6 +104,7 @@ export const getClipFormats = async (req : Request , res : Response) => {
       const prodCookiesPath = '/etc/secrets/cookies.txt';
       if (fs.existsSync(prodCookiesPath)) {
       const cookiesContent = fs.readFileSync(prodCookiesPath, 'utf-8');
+      console.log(fs.readFileSync(prodCookiesPath, "utf8").slice(0, 200));
       const jobId = createJobId();
       tempcookiePath = path.join(uploadPath, `cookies-${jobId}.txt`);
       fs.writeFileSync(tempcookiePath, cookiesContent);
