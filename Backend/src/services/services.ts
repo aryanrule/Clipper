@@ -112,7 +112,8 @@ export const getClipFormats = async (req : Request , res : Response) => {
       else {
         console.log("prodcookiiepathdontexist"); 
       }
-        
+      
+       
 
       const ytArgs = [
       '-j', 
@@ -135,6 +136,7 @@ export const getClipFormats = async (req : Request , res : Response) => {
           ytArgs.push("--cookies" , localCookiesPath);
         }
       }
+
       
       const timeout = setTimeout(() => {
         console.log("[formats] timeout reached . killing yt-dlp process");
