@@ -10,28 +10,58 @@ const router = Router();
 
 console.log("clip routes loaded");
 
-router.get('/debug' , (req , res) => {
-   const yt = spawn("yt-dlp", [
-  "--cookies",
-  "/etc/secrets/cookies.txt",
-  "--print",
-  "id",
-  "https://www.youtube.com/watch?v=lWBj9z2xDDs",
-]);
-  let out = "";
-  let err = "";
+import fs from "fs";
+import path from "path";
 
-  yt.stdout.on("data", d => out += d);
-  yt.stderr.on("data", d => err += d);
+router.get("/debug", (req, res) => {
+  const secretPath = "/etc/secrets/cookies.txt";
+  const tempPath = path.join("/tmp", "cookies-debug.txt");
 
-  yt.on("close", () => {
+  if (!fs.existsSync(secretPath)) {
+    return res.status(500).json({
+      error: "Secret cookies file not found",
+    });
+  }
+
+  // Copy secret file to a writable location
+  fs.copyFileSync(secretPath, tempPath);
+
+  const args = [
+    "--cookies",
+    tempPath,
+    "--print",
+    "id",
+    "https://www.youtube.com/watch?v=lWBj9z2xDDs",
+  ];
+
+  console.log("Running:", "yt-dlp", args);
+
+  const yt = spawn("yt-dlp", args);
+
+  let stdout = "";
+  let stderr = "";
+
+  yt.stdout.on("data", (d) => {
+    stdout += d.toString();
+  });
+
+  yt.stderr.on("data", (d) => {
+    stderr += d.toString();
+  });
+
+  yt.on("close", (code) => {
+    if (fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
+
     res.json({
-      stdout: out,
-      stderr: err
+      exitCode: code,
+      stdout,
+      stderr,
+      args,
     });
   });
 });
-
 router.get('/format' , getClipFormats);
 router.post('/clip', clipVideo);
 router.get('/clip/:id' , getClipWithID); 
