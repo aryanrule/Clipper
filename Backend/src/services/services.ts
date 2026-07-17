@@ -109,6 +109,9 @@ export const getClipFormats = async (req : Request , res : Response) => {
       tempcookiePath = path.join(uploadPath, `cookies-${jobId}.txt`);
       fs.writeFileSync(tempcookiePath, cookiesContent);
       }
+      else {
+        console.log("prodcookiiepathdontexist"); 
+      }
         
 
       const ytArgs = [
