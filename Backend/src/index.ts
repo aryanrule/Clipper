@@ -5,6 +5,7 @@ import express from "express";
 const app = express();
 const PORT = process.env.PORT ;
 import cors from "cors";
+import path from "path";
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -32,6 +33,8 @@ app.use((req, res, next) => {
   next();
 });
 
+const dir = path.join(__dirname , "hello.txt");
+console.log("dir" , dir);
 
 app.use(express.json());
 app.use("/api", routes);

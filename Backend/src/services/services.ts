@@ -85,6 +85,7 @@ const dummyData = {
           ? "yt-dlp"
          : path.resolve(__dirname, "../../bin/yt-dlp.exe");   
 
+
 export const getClipFormats = async (req : Request , res : Response) => {
     console.log("i am inside grtclipformat system");  
     const url = req.query.url; 
@@ -119,6 +120,17 @@ export const getClipFormats = async (req : Request , res : Response) => {
       'user-agent:Mozilla/5.0',
        url as string
       ];
+
+
+      if(tempcookiePath){
+        ytArgs.push("--cookies" , tempcookiePath);
+      }else {
+        const localCookiesPath = path.join(__dirname , "cookies.txt");
+        console.log("localcookiepath" , localCookiesPath);
+        if(fs.existsSync(localCookiesPath)){
+          ytArgs.push("--cookies" , localCookiesPath);
+        }
+      }
       
       const timeout = setTimeout(() => {
         console.log("[formats] timeout reached . killing yt-dlp process");
@@ -272,11 +284,7 @@ export const clipVideo = async (req:Request , res : Response) => {
         tempcookiePath = path.join(uploadPath, `cookies-${ID}.txt`);
         fs.writeFileSync(tempcookiePath, cookiesContent);
       }
-       if(fs.existsSync(prodCookiesPath)){
-          const cookieContent = fs.readFileSync(prodCookiesPath);
-          tempcookiePath = path.join(uploadPath , `cookies-${ID}.txt`);
-          fs.writeFileSync(tempcookiePath , cookieContent);
-       }
+      
 
        const ytArgs =  [
         url as string 
