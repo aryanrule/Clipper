@@ -272,9 +272,8 @@ export const clipVideo = async (req:Request , res : Response) => {
         tempcookiePath = path.join(uploadPath, `cookies-${ID}.txt`);
         fs.writeFileSync(tempcookiePath, cookiesContent);
       }
-       const prodCookPath = '/etc/secrets/cookies.txt';
-       if(fs.existsSync(prodCookPath)){
-          const cookieContent = fs.readFileSync(prodCookPath);
+       if(fs.existsSync(prodCookiesPath)){
+          const cookieContent = fs.readFileSync(prodCookiesPath);
           tempcookiePath = path.join(uploadPath , `cookies-${ID}.txt`);
           fs.writeFileSync(tempcookiePath , cookieContent);
        }
